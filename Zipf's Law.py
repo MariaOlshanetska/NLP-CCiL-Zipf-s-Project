@@ -4,33 +4,28 @@ Created on Mon Feb 17 16:14:32 2025
 
 @author: Usuario
 """
+#First we will import all the libraries we will need
 import pandas as pd
 import nltk
 from collections import Counter
 import numpy as np
 from scipy.stats import pearsonr, norm
-
-# Ensure the necessary NLTK tokenizer data is available.
 nltk.download('punkt')
 
+#Here we will load a CSV file, remove rows where the second column (index 1) contains 'streamelements' 
+#(case-insensitive), drop the first three columns (keeping only the message column), tokenize all messages, 
+#and returns a list of tokens. During tokenization, we also will remove punctuation so that only words (alphabetic tokens) 
+#are retained. If a 'message' column exists it is used; otherwise, the fourth column (index 3) will be assumed to be 
+#the message.
 def load_and_tokenize(csv_file):
-    """
-    Loads a CSV file, removes rows where the second column (index 1)
-    contains 'streamelements' (case-insensitive), drops the first three columns 
-    (keeping only the message column), tokenizes all messages, and returns a list of tokens.
-    
-    During tokenization, punctuation is removed so that only words (alphabetic tokens) are retained.
-    If a 'message' column exists it is used; otherwise, the fourth column (index 3) is assumed to be the message.
-    """
+
     try:
         df = pd.read_csv(csv_file, on_bad_lines='skip')
     except TypeError:
         df = pd.read_csv(csv_file, error_bad_lines=False)
     
-    # Filter out rows where the second column contains 'streamelements' (case-insensitive)
     df = df[df.iloc[:, 1].astype(str).str.lower() != 'streamelements']
     
-    # Select only the message column: use 'message' if available, otherwise the fourth column.
     if 'message' in df.columns:
         messages = df['message'].dropna().astype(str)
     else:
@@ -38,47 +33,46 @@ def load_and_tokenize(csv_file):
     
     tokens = []
     for message in messages:
-        # Tokenize the message text.
         raw_tokens = nltk.word_tokenize(message)
-        # Keep only alphabetic tokens (removes punctuation and tokens with numbers/symbols)
         word_tokens = [token for token in raw_tokens if token.isalpha()]
         tokens.extend(word_tokens)
     
     return tokens
 
+# Here we will calculate the frequency and character length for each unique token.
+# Then we will return a pandas DataFrame with columns: 'Token', 'Frequency', and 'Length'.
+
 def get_token_statistics(tokens):
-    """
-    Calculates the frequency and character length for each unique token.
-    Returns a pandas DataFrame with columns: 'Token', 'Frequency', and 'Length'.
-    """
+
     freq_dict = Counter(tokens)
     data = [(token, freq, len(token)) for token, freq in freq_dict.items()]
     stats_df = pd.DataFrame(data, columns=['Token', 'Frequency', 'Length'])
     return stats_df
 
+#Now we will Perform a Pearson correlation analysis between token frequency and token length.
+#And return the correlation coefficient and p-value.
+
+
 def perform_correlation_analysis(stats_df):
-    """
-    Performs a Pearson correlation analysis between token frequency and token length.
-    Returns the correlation coefficient and p-value.
-    """
+
     correlation, p_value = pearsonr(stats_df['Frequency'], stats_df['Length'])
     return correlation, p_value
 
-def compare_correlations(r1, n1, r2, n2):
-    """
-    Compares two independent Pearson correlation coefficients using Fisher's r-to-z transformation.
-    
-    Parameters:
-      r1: correlation coefficient for group 1 (e.g., English)
-      n1: sample size (number of token types) for group 1
-      r2: correlation coefficient for group 2 (e.g., Spanish)
-      n2: sample size (number of token types) for group 2
+
+#Now we will compare two independent Pearson correlation coefficients using Fisher's r-to-z transformation.
+#Parameters:
+      #r1: correlation coefficient for group 1 (e.g., English)
+      #n1: sample size (number of token types) for group 1
+      #r2: correlation coefficient for group 2 (e.g., Spanish)
+      #n2: sample size (number of token types) for group 2
       
-    Returns:
-      diff: Difference (r1 - r2)
-      z_stat: The z-test statistic comparing the two correlations
-      p_value: Two-tailed p-value for the test
-    """
+#It will return:
+      #diff: Difference (r1 - r2)
+      #z_stat: The z-test statistic comparing the two correlations
+      #p_value: Two-tailed p-value for the test
+
+def compare_correlations(r1, n1, r2, n2):
+
     # Fisher r-to-z transformation:
     def fisher_z(r):
         return 0.5 * np.log((1 + r) / (1 - r))
@@ -92,9 +86,8 @@ def compare_correlations(r1, n1, r2, n2):
     z_stat = (z1 - z2) / se_diff
     p_value = 2 * (1 - norm.cdf(abs(z_stat)))
     return r1 - r2, z_stat, p_value
-
+#This is our main function
 def main():
-    # Define file paths for the English and Spanish CSVs.
     english_file = 'english.csv'
     spanish_file = 'spanish.csv'
     
